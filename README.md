@@ -12,26 +12,37 @@ $ docker pull fnproject/fdk-java:latest
 
 Then you can build and deploy the app
 
+Once the app is deployed you need to make the route through API Gateway
+https://docs.oracle.com/en-us/iaas/developer-tutorials/tutorials/functions/func-api-gtw/01-summary.htm
+
+
 ```bash
 fn build
-fn deploy --local --app spring-cloud-fn
-
-# Set up a couple of routes for different functions
-fn routes create spring-cloud-fn /upper
-fn routes config set spring-cloud-fn /upper FN_SPRING_FUNCTION upperCase
-
-fn routes create spring-cloud-fn /lower
-fn routes config set spring-cloud-fn /lower FN_SPRING_FUNCTION lowerCase
+fn deploy --app <app_name>
 ```
 
-Now you can call those functions using `fn call` or curl:
+Try invoking the image through command 
+```bash
+fn invoke <app_name> <function_name>
+```
+Double-check that the VCN includes an internet gateway or service gateway. 
+For Oracle Functions to be able to access Oracle Cloud Infrastructure Registry to pull an image, 
+the VCN must include an internet gateway or a service gateway. Follow the link
+https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionstroubleshooting_topic-Issues-invoking-functions.htm
+
+Under the policy, check  for the policy for allowing all the compartment user to have access over the url
+```bash
+ALLOW any-user to use functions-family in <compartment> where ALL {request.principal.type= 'ApiGateway', request.resource.compartment.id = '<compartment_id>'}
+```
+
+Now you can call those functions using `fn invoke` or curl:
 
 ```bash
-$ echo "Hi there" | fn call spring-cloud-fn /upper
-HI THERE
+$ echo "Hi there" | fn invoke spring-cloud-fn 
+Hello world
 
-$ curl -d "Hi There" http://localhost:8080/r/spring-cloud-fn/lower
-hi there
+$ curl -d "Bob" http://<url-apigateway>/hello
+Hello Bob
 ```
 
 
@@ -71,14 +82,9 @@ Currently the runtime expects a method to invoke, however this isn't used in the
 
 ```java
     @Bean
-    public Function<String, String> upperCase(){
-        return String::toUpperCase;
-    }
-
-    @Bean
-    public Function<String, String> lowerCase(){
-        return String::toLowerCase;
-    }
+    public Function<String, String> function(){
+        return value -> "Hello, " + ((value == null || value.isEmpty()) ? "world"  : value ) + "!";
+        }
 ```
 
 Finally the heart of the configuration; the bean definitions of the functions to invoke.
